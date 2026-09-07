@@ -56,3 +56,10 @@ export type ActionResult<TData = undefined> =
 
 /** Initial/idle state for `useActionState`. */
 export type ActionState<TData = undefined> = ActionResult<TData> | null
+
+/** Verified contents of a session cookie. */
+export interface SessionTokenPayload {
+  userId: string
+  /** Unix seconds, from the JWT `exp` claim. */
+  expiresAt: number | null
+}

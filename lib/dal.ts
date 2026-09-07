@@ -6,6 +6,7 @@ import { cookies } from "next/headers"
 import { findUserById } from "@/lib/data/rbac"
 import { flattenPermissions, hasPermission } from "@/lib/permissions"
 import { SESSION_COOKIE } from "@/lib/session-cookie"
+import { verifySessionToken } from "@/lib/session-token"
 import type { AuthSession } from "@/types"
 import type { PermissionAction, Resource, UserRole } from "@/types/enums"
 
@@ -28,10 +29,15 @@ export const getSession = cache(async (): Promise<AuthSession | null> => {
     return null
   }
 
-  // TODO: the cookie currently carries the raw user id. Replace with a signed,
-  // expiring token (JWT or an opaque id backed by a Session table) and verify
-  // it here — today anyone who guesses an id can mint a session.
-  const user = await findUserById(token)
+  // Verify the signature before the value is trusted for anything, so a forged
+  // or tampered cookie never reaches the database.
+  const payload = await verifySessionToken(token)
+
+  if (!payload) {
+    return null
+  }
+
+  const user = await findUserById(payload.userId)
 
   if (!user || user.status !== "active") {
     return null

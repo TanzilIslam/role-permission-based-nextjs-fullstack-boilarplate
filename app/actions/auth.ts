@@ -8,6 +8,7 @@ import { actionError, actionFailure, actionSuccess } from "@/lib/action-result"
 import { findUserByEmail } from "@/lib/data/rbac"
 import { getSession } from "@/lib/dal"
 import { SESSION_COOKIE } from "@/lib/session-cookie"
+import { SESSION_MAX_AGE_SECONDS, signSessionToken } from "@/lib/session-token"
 import { loginSchema } from "@/lib/validations/auth"
 import { toFormErrors } from "@/lib/validations/form"
 import type { ActionResult, ActionState, AuthSession } from "@/types"
@@ -69,11 +70,10 @@ export async function loginAction(
     }
 
     const cookieStore = await cookies()
-    // TODO: sign this. See the matching note in lib/dal.ts.
-    cookieStore.set(SESSION_COOKIE, record.id, {
+    cookieStore.set(SESSION_COOKIE, await signSessionToken(record.id), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: SESSION_MAX_AGE_SECONDS,
       path: "/",
       sameSite: "lax",
     })

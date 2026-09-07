@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 import { SESSION_COOKIE } from "@/lib/session-cookie"
+import { verifySessionToken } from "@/lib/session-token"
 
 const publicRoutes = ["/login", "/register"]
 const protectedRoutePrefix = "/dashboard"
@@ -15,10 +16,17 @@ const protectedRoutePrefix = "/dashboard"
  * session-decryption work belongs here — real authorization happens in the DAL
  * (`requirePermission`) and is re-checked inside every Server Action.
  */
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { nextUrl } = request
   const path = nextUrl.pathname
-  const isAuthenticated = Boolean(request.cookies.get(SESSION_COOKIE)?.value)
+  // Signature verification is pure crypto with no database round-trip, so it
+  // is cheap enough to run on every request and still counts as an optimistic
+  // check. A forged or expired cookie is now rejected here at the edge rather
+  // than being waved through to the page.
+  const payload = await verifySessionToken(
+    request.cookies.get(SESSION_COOKIE)?.value
+  )
+  const isAuthenticated = payload !== null
 
   // Exact match, not startsWith: "/login" must not also match "/login-help".
   const isPublicRoute = publicRoutes.includes(path)
@@ -29,7 +37,13 @@ export function proxy(request: NextRequest) {
     const loginUrl = new URL("/login", request.url)
     // Preserved so the user lands where they were headed after signing in.
     loginUrl.searchParams.set("from", path)
-    return NextResponse.redirect(loginUrl)
+
+    const response = NextResponse.redirect(loginUrl)
+    // Clear an invalid/expired cookie so the browser stops resending it.
+    if (request.cookies.has(SESSION_COOKIE)) {
+      response.cookies.delete(SESSION_COOKIE)
+    }
+    return response
   }
 
   if (isPublicRoute && isAuthenticated) {
