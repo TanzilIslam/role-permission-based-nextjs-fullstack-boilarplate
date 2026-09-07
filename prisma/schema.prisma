@@ -1,0 +1,81 @@
+// RBAC schema for the dashboard.
+//
+// Enum member names deliberately match the string values of the TypeScript
+// enums in `types/enums.ts` (UserRole, PermissionAction, Resource, UserStatus),
+// so mapping a row to `IUser` / `IRole` / `IPermission` in the DAL is a direct
+// assignment rather than a lookup table.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRoleKey {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  USER
+}
+
+enum PermissionActionKey {
+  create
+  read
+  update
+  delete
+  manage
+}
+
+enum ResourceKey {
+  users
+  roles
+  permissions
+  dashboard
+  settings
+}
+
+enum UserStatusKey {
+  active
+  inactive
+  pending
+}
+
+model Permission {
+  id          String              @id @default(cuid())
+  action      PermissionActionKey
+  resource    ResourceKey
+  description String?
+  roles       Role[]              @relation("RolePermissions")
+
+  // One row per resource/action pair; the catalogue must not hold duplicates.
+  @@unique([resource, action])
+}
+
+model Role {
+  id          String       @id @default(cuid())
+  name        String
+  key         UserRoleKey  @unique
+  permissions Permission[] @relation("RolePermissions")
+  users       User[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model User {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  image        String?
+  // Never the password itself. Hashed at the application layer.
+  passwordHash String
+  status       UserStatusKey @default(pending)
+  roleId       String
+  role         Role          @relation(fields: [roleId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([roleId])
+}
