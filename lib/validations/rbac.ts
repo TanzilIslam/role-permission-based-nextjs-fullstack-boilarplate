@@ -38,3 +38,11 @@ export type PermissionInput = z.infer<typeof permissionSchema>
 export type RoleInput = z.infer<typeof roleSchema>
 export type UserUpdateInput = z.infer<typeof userUpdateSchema>
 export type UserRecord = z.infer<typeof userRecordSchema>
+
+export const rolePermissionsSchema = z.object({
+  roleId: z.string().min(1, "Role is required"),
+  // May legitimately be empty — a role with no grants is valid.
+  permissionIds: z.array(z.string().min(1)),
+})
+
+export type RolePermissionsInput = z.infer<typeof rolePermissionsSchema>

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { AuthProvider } from "@/components/providers/auth-provider"
+import { Toaster } from "@/components/ui/sonner"
 import { getSession } from "@/lib/dal"
 
 export default async function DashboardLayout({
@@ -32,6 +33,8 @@ export default async function DashboardLayout({
 
           <main className="flex-1 p-6 md:p-8">{children}</main>
         </div>
+
+        <Toaster />
       </div>
     </AuthProvider>
   )

@@ -84,6 +84,40 @@ export async function insertRole(input: {
   return toRole(row)
 }
 
+/**
+ * Replaces a role's permission set wholesale.
+ *
+ * `set` rather than `connect`, so unchecking a box actually removes the grant
+ * instead of leaving it attached.
+ */
+export async function setRolePermissions(
+  roleId: string,
+  permissionIds: string[]
+): Promise<IRole> {
+  const row = await prisma.role.update({
+    where: { id: roleId },
+    data: { permissions: { set: permissionIds.map((id) => ({ id })) } },
+    include: withPermissions,
+  })
+  return toRole(row)
+}
+
+export async function findRoleById(roleId: string): Promise<IRole | null> {
+  const row = await prisma.role.findUnique({
+    where: { id: roleId },
+    include: withPermissions,
+  })
+  return row ? toRole(row) : null
+}
+
+/** Resolves permission ids to rows, so unknown ids can be rejected up front. */
+export async function findPermissionsByIds(
+  ids: string[]
+): Promise<IPermission[]> {
+  const rows = await prisma.permission.findMany({ where: { id: { in: ids } } })
+  return rows.map(toPermission)
+}
+
 export async function removeRole(roleId: string): Promise<boolean> {
   const result = await prisma.role.deleteMany({ where: { id: roleId } })
   return result.count > 0
