@@ -11,6 +11,12 @@ import {
   updateUser,
 } from "@/lib/data/rbac"
 import { hasPermission } from "@/lib/permissions"
+import {
+  CRITICAL_CAPABILITIES,
+  breaksInvariant,
+  countActiveHolders,
+  grantsCapability,
+} from "@/lib/rbac-invariants"
 import { toFormErrors } from "@/lib/validations/form"
 import { userRoleUpdateSchema } from "@/lib/validations/rbac"
 import type { ActionResult, IUser } from "@/types"
@@ -126,6 +132,34 @@ export const updateUserRoleAction = withPermission(
       return actionFailure(
         `You cannot set your own account to "${status}" — it would end your session immediately.`
       )
+    }
+
+    // Last-administrator invariant.
+    //
+    // The guards above stop you dismantling your OWN access; this stops the
+    // system as a whole losing its last active administrator. Two SUPER_ADMINs
+    // could otherwise demote or deactivate each other down to zero, leaving a
+    // dashboard nobody can administer.
+    const nextRoleForCheck = roleId ? await findRoleById(roleId) : target.role
+    const nextStatus = status ?? target.status
+    const wasActive = target.status === "active"
+    const willBeActive = nextStatus === "active"
+
+    for (const capability of CRITICAL_CAPABILITIES) {
+      const othersHold = await countActiveHolders(capability, { userId })
+
+      const heldBefore =
+        wasActive && grantsCapability(target.role.permissions, capability)
+      const heldAfter =
+        willBeActive &&
+        Boolean(nextRoleForCheck) &&
+        grantsCapability(nextRoleForCheck!.permissions, capability)
+
+      if (breaksInvariant({ othersHold, heldBefore, heldAfter })) {
+        return actionFailure(
+          `This would leave nobody able to ${capability.label}. ${target.name} is the last active user who can — assign that capability to another active user first.`
+        )
+      }
     }
 
     const updated = await updateUser(userId, { roleId, status })

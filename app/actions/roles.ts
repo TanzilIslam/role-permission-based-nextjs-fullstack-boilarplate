@@ -15,6 +15,13 @@ import {
 } from "@/lib/data/rbac"
 import { toFormErrors } from "@/lib/validations/form"
 import { flattenPermissions, hasPermission } from "@/lib/permissions"
+import {
+  CRITICAL_CAPABILITIES,
+  breaksInvariant,
+  countActiveHolders,
+  countActiveUsersInRole,
+  grantsCapability,
+} from "@/lib/rbac-invariants"
 import { rolePermissionsSchema, roleSchema } from "@/lib/validations/rbac"
 import type { ActionResult, ActionState, IRole } from "@/types"
 import { PermissionAction, Resource } from "@/types/enums"
@@ -107,6 +114,30 @@ export const updateRolePermissionsAction = withPermission(
       if (!hasPermission(next, Resource.ROLES, PermissionAction.MANAGE)) {
         return actionFailure(
           `This would remove "roles:manage" from your own role (${role.key}) and lock you out of role management. Grant it to another role first, or keep it enabled here.`
+        )
+      }
+    }
+
+    // Last-administrator invariant.
+    //
+    // The self-lockout guard above only covers the actor's own role. Stripping
+    // users:manage from some OTHER role can still remove the system's last
+    // active holder of it.
+    // A role with no active members cannot be anyone's last source of a
+    // capability, so its grants are free to change.
+    const activeMembers = await countActiveUsersInRole(roleId)
+
+    for (const capability of CRITICAL_CAPABILITIES) {
+      const othersHold = await countActiveHolders(capability, { roleId })
+
+      const heldBefore =
+        activeMembers > 0 && grantsCapability(role.permissions, capability)
+      const heldAfter =
+        activeMembers > 0 && grantsCapability(resolved, capability)
+
+      if (breaksInvariant({ othersHold, heldBefore, heldAfter })) {
+        return actionFailure(
+          `This would leave nobody able to ${capability.label}. "${role.name}" holds the last active grant for it — give it to another role first.`
         )
       }
     }
