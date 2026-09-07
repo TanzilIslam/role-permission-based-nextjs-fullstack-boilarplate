@@ -46,3 +46,15 @@ export const rolePermissionsSchema = z.object({
 })
 
 export type RolePermissionsInput = z.infer<typeof rolePermissionsSchema>
+
+export const userRoleUpdateSchema = z
+  .object({
+    userId: z.string().min(1, "User is required"),
+    roleId: z.string().min(1).optional(),
+    status: z.enum(["active", "inactive", "pending"]).optional(),
+  })
+  .refine((data) => data.roleId !== undefined || data.status !== undefined, {
+    message: "Nothing to update",
+  })
+
+export type UserRoleUpdateInput = z.infer<typeof userRoleUpdateSchema>

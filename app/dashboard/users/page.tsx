@@ -1,28 +1,48 @@
-import { PermissionGuard } from "@/components/auth/permission-guard"
-import { PermissionAction, Resource } from "@/types/enums"
+import { getRolesAction } from "@/app/actions/roles"
+import { getUsersAction } from "@/app/actions/users"
+import { UserTable } from "@/components/dashboard/users/user-table"
+import { getSession } from "@/lib/dal"
 
 export default async function UsersPage() {
-  return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold">Users</h1>
+  const session = await getSession()
+  const [usersResult, rolesResult] = await Promise.all([
+    getUsersAction(),
+    getRolesAction(),
+  ])
 
-      {/* Guard rather than a bare requirePermission(): throwing ForbiddenError
-          from a Server Component surfaces as a 500. Next's forbidden() would be
-          the tidier primitive but is still behind the experimental
-          `authInterrupts` flag. */}
-      <PermissionGuard
-        resource={Resource.USERS}
-        action={PermissionAction.READ}
-        fallback={
-          <p className="text-sm text-destructive">
-            You do not have permission to view users.
-          </p>
-        }
-      >
+  if (!usersResult.success) {
+    return (
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-bold tracking-tight">Users</h1>
+        <p className="text-sm text-destructive">{usersResult.message}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Users</h1>
         <p className="text-sm text-muted-foreground">
-          User management table goes here next.
+          Manage your team members and their account privileges.
         </p>
-      </PermissionGuard>
+      </div>
+
+      {/* Role reassignment needs the role list. Reading roles requires
+          roles:read, which a users-only administrator may not hold — so the
+          table degrades to read-only rather than the page failing. */}
+      {!rolesResult.success ? (
+        <p className="text-sm text-muted-foreground">
+          Roles could not be loaded ({rolesResult.message}) — role reassignment
+          is unavailable.
+        </p>
+      ) : null}
+
+      <UserTable
+        users={usersResult.data}
+        roles={rolesResult.success ? rolesResult.data : []}
+        currentUserId={session?.user.id ?? ""}
+      />
     </div>
   )
 }

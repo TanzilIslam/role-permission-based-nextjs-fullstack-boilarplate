@@ -130,11 +130,40 @@ export async function listPermissions(): Promise<IPermission[]> {
   return rows.map(toPermission)
 }
 
+export async function listUsers(): Promise<IUser[]> {
+  const rows = await prisma.user.findMany({
+    include: { role: { include: withPermissions } },
+    orderBy: { createdAt: "asc" },
+  })
+  return rows.map(toUser)
+}
+
+export async function updateUser(
+  userId: string,
+  data: { roleId?: string; status?: UserStatus }
+): Promise<IUser> {
+  const row = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...(data.roleId ? { roleId: data.roleId } : {}),
+      ...(data.status ? { status: data.status } : {}),
+    },
+    include: { role: { include: withPermissions } },
+  })
+  return toUser(row)
+}
+
 export async function findUserById(userId: string) {
   return prisma.user.findUnique({
     where: { id: userId },
     include: { role: { include: withPermissions } },
   })
+}
+
+/** Mapped to the domain type, for callers that want `IUser` not a Prisma row. */
+export async function getUserById(userId: string): Promise<IUser | null> {
+  const row = await findUserById(userId)
+  return row ? toUser(row) : null
 }
 
 export async function findUserByEmail(email: string) {
