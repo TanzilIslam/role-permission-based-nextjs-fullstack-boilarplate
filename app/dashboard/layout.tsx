@@ -5,6 +5,9 @@ import { AuthProvider } from "@/components/providers/auth-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { getSession } from "@/lib/dal"
 
+// Every dashboard page reads session cookies — skip static pre-rendering.
+export const dynamic = "force-dynamic"
+
 export default async function DashboardLayout({
   children,
 }: {
