@@ -172,3 +172,23 @@ export async function findUserByEmail(email: string) {
     include: { role: { include: withPermissions } },
   })
 }
+
+export async function createUser(input: {
+  name: string
+  email: string
+  passwordHash: string
+  roleId: string
+  status: UserStatus
+}): Promise<IUser> {
+  const row = await prisma.user.create({
+    data: {
+      name: input.name,
+      email: input.email,
+      passwordHash: input.passwordHash,
+      roleId: input.roleId,
+      status: input.status,
+    },
+    include: { role: { include: withPermissions } },
+  })
+  return toUser(row as Parameters<typeof toUser>[0])
+}

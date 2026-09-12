@@ -1,11 +1,14 @@
 "use server"
 
+import bcrypt from "bcryptjs"
 import { revalidatePath } from "next/cache"
 
 import { actionFailure, actionSuccess } from "@/lib/action-result"
 import { withPermission } from "@/lib/auth-wrapper"
 import {
+  createUser,
   findRoleById,
+  findUserByEmail,
   getUserById,
   listUsers,
   updateUser,
@@ -18,7 +21,7 @@ import {
   grantsCapability,
 } from "@/lib/rbac-invariants"
 import { toFormErrors } from "@/lib/validations/form"
-import { userRoleUpdateSchema } from "@/lib/validations/rbac"
+import { createUserSchema, userRoleUpdateSchema } from "@/lib/validations/rbac"
 import type { ActionResult, IUser } from "@/types"
 import { PermissionAction, Resource } from "@/types/enums"
 
@@ -27,6 +30,71 @@ export const getUsersAction = withPermission(
   PermissionAction.READ,
   async (): Promise<ActionResult<IUser[]>> =>
     actionSuccess("Users loaded.", await listUsers())
+)
+
+export const createUserAction = withPermission(
+  Resource.USERS,
+  PermissionAction.CREATE,
+  async (
+    session,
+    input: {
+      name: string
+      email: string
+      password: string
+      roleId: string
+      status?: string
+    }
+  ): Promise<ActionResult<IUser>> => {
+    const validated = createUserSchema.safeParse(input)
+
+    if (!validated.success) {
+      return actionFailure("Validation failed.", toFormErrors(validated.error))
+    }
+
+    const { name, email, password, roleId, status } = validated.data
+
+    const existing = await findUserByEmail(email)
+    if (existing) {
+      return actionFailure("A user with this email already exists.")
+    }
+
+    // Privilege-escalation guard: can't assign a role more powerful than yours.
+    const targetRole = await findRoleById(roleId)
+    if (!targetRole) {
+      return actionFailure("Role not found.")
+    }
+
+    const escalations = targetRole.permissions.filter(
+      (permission) =>
+        !hasPermission(
+          session.user.permissions,
+          permission.resource,
+          permission.action
+        )
+    )
+
+    if (escalations.length > 0) {
+      const list = escalations
+        .map((p) => `${p.resource}:${p.action}`)
+        .join(", ")
+      return actionFailure(
+        `You cannot assign "${targetRole.name}" because it grants permissions you do not hold yourself: ${list}.`
+      )
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12)
+
+    const user = await createUser({
+      name,
+      email,
+      passwordHash,
+      roleId,
+      status,
+    })
+
+    revalidatePath("/dashboard/users")
+    return actionSuccess(`${user.name} created.`, user)
+  }
 )
 
 export const updateUserRoleAction = withPermission(

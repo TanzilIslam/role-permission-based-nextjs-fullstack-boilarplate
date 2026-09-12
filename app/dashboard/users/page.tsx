@@ -1,5 +1,6 @@
 import { getRolesAction } from "@/app/actions/roles"
 import { getUsersAction } from "@/app/actions/users"
+import { CreateUserDialog } from "@/components/dashboard/users/create-user-dialog"
 import { UserTable } from "@/components/dashboard/users/user-table"
 import { getSession } from "@/lib/dal"
 
@@ -21,11 +22,16 @@ export default async function UsersPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Users</h1>
-        <p className="text-sm text-muted-foreground">
-          Manage your team members and their account privileges.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Users</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage your team members and their account privileges.
+          </p>
+        </div>
+        {rolesResult.success ? (
+          <CreateUserDialog roles={rolesResult.data} />
+        ) : null}
       </div>
 
       {/* Role reassignment needs the role list. Reading roles requires

@@ -125,7 +125,11 @@ async function main() {
       status: UserStatusKey.active,
       roleId: superAdminRole.id,
     },
-    update: { roleId: superAdminRole.id, status: UserStatusKey.active },
+    update: {
+      passwordHash: await bcrypt.hash(password, 12),
+      roleId: superAdminRole.id,
+      status: UserStatusKey.active,
+    },
   })
   console.log(`user ${email} -> SUPER_ADMIN`)
 
