@@ -119,6 +119,15 @@ export const itemSchema = z.object({
 })
 
 export type ItemInput = z.infer<typeof itemSchema>
+
+// A separate schema for update, not a `.partial()` of itemSchema — update needs
+// the `id`, and reusing the same shape would make `id` optional on create too.
+export const itemUpdateSchema = z.object({
+  id: z.string().min(1, "Item is required"),
+  name: z.string().min(1, "Name is required"),
+})
+
+export type ItemUpdateInput = z.infer<typeof itemUpdateSchema>
 ```
 
 ## 6. Data access layer
@@ -146,11 +155,30 @@ export async function insertItem(name: string): Promise<IItem> {
   return toItem(row)
 }
 
+export async function updateItem(
+  id: string,
+  name: string
+): Promise<IItem | null> {
+  try {
+    const row = await prisma.item.update({ where: { id }, data: { name } })
+    return toItem(row)
+  } catch {
+    // Prisma throws (P2025) rather than returning null when the row is
+    // gone — swallow it so the action can return a normal "not found".
+    return null
+  }
+}
+
 export async function removeItem(itemId: string): Promise<boolean> {
   const result = await prisma.item.deleteMany({ where: { id: itemId } })
   return result.count > 0
 }
 ```
+
+`deleteMany`/count and `update`/try-catch are two different idioms for the same problem
+("did this id exist?") — `deleteMany` naturally reports a count, `update` doesn't, so it
+needs the try/catch instead. Don't `findUnique` first just to avoid the catch; that's an
+extra round trip for no benefit.
 
 ## 7. Server Actions
 
@@ -164,9 +192,14 @@ import { revalidatePath } from "next/cache"
 
 import { actionFailure, actionSuccess } from "@/lib/action-result"
 import { withPermission } from "@/lib/auth-wrapper"
-import { insertItem, listItems, removeItem } from "@/lib/data/items"
+import {
+  insertItem,
+  listItems,
+  removeItem,
+  updateItem,
+} from "@/lib/data/items"
 import { toFormErrors } from "@/lib/validations/form"
-import { itemSchema } from "@/lib/validations/items"
+import { itemSchema, itemUpdateSchema } from "@/lib/validations/items"
 import type { ActionResult, IItem } from "@/types"
 import { PermissionAction, Resource } from "@/types/enums"
 
@@ -193,6 +226,29 @@ export const createItemAction = withPermission(
   }
 )
 
+export const updateItemAction = withPermission(
+  Resource.ITEMS,
+  PermissionAction.UPDATE,
+  async (
+    _session,
+    input: { id: string; name: string }
+  ): Promise<ActionResult<IItem>> => {
+    const validated = itemUpdateSchema.safeParse(input)
+
+    if (!validated.success) {
+      return actionFailure("Validation failed.", toFormErrors(validated.error))
+    }
+
+    const updated = await updateItem(validated.data.id, validated.data.name)
+    if (!updated) {
+      return actionFailure("Item not found.")
+    }
+
+    revalidatePath("/dashboard/items")
+    return actionSuccess("Item updated.", updated)
+  }
+)
+
 export const deleteItemAction = withPermission(
   Resource.ITEMS,
   PermissionAction.DELETE,
@@ -212,7 +268,13 @@ Notice what's **absent** on purpose:
 - No invariant guards (`lib/rbac-invariants.ts`) — those exist only because deleting the
   last admin locks out the whole system. A plain list doesn't need them. Add them only if
   your module has an equivalent "can this leave the system unusable" case.
-- One action per resource/action pair. Don't fold create+update+delete into one handler.
+- One action per resource/action pair, one action per permission action
+  (`getItemsAction`→`READ`, `createItemAction`→`CREATE`, `updateItemAction`→`UPDATE`,
+  `deleteItemAction`→`DELETE`). Don't fold create+update+delete into one handler, and
+  don't reach for `PermissionAction.MANAGE` on an individual action just because a role
+  happens to hold it — `MANAGE` is a wildcard *grant*, not something an action checks for;
+  `hasPermission`/`withPermission` already treat a `MANAGE` grant as satisfying every
+  narrower action for you.
 
 ## 8. Dashboard page
 
@@ -255,8 +317,8 @@ export default async function ItemsPage() {
 
 ## 9. Client components
 
-Gate create/delete controls with `usePermission()` — **UI-only**, the real check already
-happened in step 7. Mirror `components/dashboard/users/create-user-dialog.tsx`:
+Gate create/update/delete controls with `usePermission()` — **UI-only**, the real check
+already happened in step 7. Mirror `components/dashboard/users/create-user-dialog.tsx`:
 
 ```tsx
 "use client"
@@ -307,8 +369,104 @@ export function CreateItemDialog() {
 }
 ```
 
-For read-only rendering of individual rows (e.g. hiding a delete button per-row), use the
-server-side `PermissionGuard` instead when the list itself is rendered on the server:
+For a list with inline edit/delete per row, gate each action independently — a viewer might
+have `update` but not `delete`, or neither. Keep one `editingId` in state rather than an
+edit flag per row, so only one row can be in edit mode at a time:
+
+```tsx
+"use client"
+
+import { useState, useTransition } from "react"
+import { toast } from "sonner"
+
+import { deleteItemAction, updateItemAction } from "@/app/actions/items"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { usePermission } from "@/hooks/use-permission"
+import type { IItem } from "@/types"
+import { Resource } from "@/types/enums"
+
+export function ItemList({ items }: { items: IItem[] }) {
+  const { canUpdate, canDelete } = usePermission()
+  const [isPending, startTransition] = useTransition()
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState("")
+
+  const canEdit = canUpdate(Resource.ITEMS)
+  const canRemove = canDelete(Resource.ITEMS)
+
+  function saveEdit(id: string) {
+    startTransition(async () => {
+      const result = await updateItemAction({ id, name: editingName })
+      if (result.success) {
+        toast.success(result.message)
+        setEditingId(null)
+      } else {
+        toast.error(result.message)
+      }
+    })
+  }
+
+  function handleDelete(id: string) {
+    startTransition(async () => {
+      const result = await deleteItemAction(id)
+      if (result.success) toast.success(result.message)
+      else toast.error(result.message)
+    })
+  }
+
+  return (
+    <ul className="flex flex-col gap-2">
+      {items.map((item) => (
+        <li key={item.id} className="flex items-center gap-2">
+          {editingId === item.id ? (
+            <>
+              <Input
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                disabled={isPending}
+                autoFocus
+              />
+              <Button size="sm" onClick={() => saveEdit(item.id)}>
+                Save
+              </Button>
+            </>
+          ) : (
+            <>
+              <span className="flex-1">{item.name}</span>
+              {canEdit ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setEditingId(item.id)
+                    setEditingName(item.name)
+                  }}
+                >
+                  Edit
+                </Button>
+              ) : null}
+              {canRemove ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={isPending}
+                  onClick={() => handleDelete(item.id)}
+                >
+                  Delete
+                </Button>
+              ) : null}
+            </>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+For read-only rendering of individual rows (e.g. hiding a delete button per-row) in a
+Server Component instead, use `PermissionGuard`:
 
 ```tsx
 import { PermissionGuard } from "@/components/auth/permission-guard"
@@ -336,12 +494,27 @@ automatically, same list the server enforces against):
 
 ## 11. Verify
 
-- `npx prisma migrate dev` then `npx prisma generate`
-- `npx prisma db seed`
+- If `node_modules/` doesn't exist yet (fresh clone/container), run `npm install` first —
+  its `postinstall` runs `prisma generate` for you, so schema edits are picked up even
+  before a migration exists.
+- `npx prisma migrate dev --name add_<module>` then `npx prisma db seed`
 - `npm run typecheck`
-- Log in as each seeded role and confirm: nav item shows/hides correctly, create/delete
-  buttons show/hide correctly, and — most importantly — calling the Server Action directly
-  as a role that lacks the grant is still rejected server-side.
+- `npm run lint`
+- `npx prettier --check <changed files>` (or `npm run format` to fix in place) — CI/review
+  will flag anything the auto-formatter would rewrap, so run it before committing, not
+  after a review comment.
+- Log in as each seeded role and confirm: nav item shows/hides correctly, create/update/
+  delete buttons show/hide correctly per-action (not just "has any access"), and — most
+  importantly — calling the Server Action directly as a role that lacks the grant is still
+  rejected server-side.
+
+> **Environment gotcha:** `prisma migrate dev` / `prisma db seed` need a real TCP
+> connection to your Postgres host. A sandboxed/CI runner with HTTPS-only egress (no raw
+> Postgres port) will fail both with `P1001` even though the schema/code are correct.
+> When that happens: finish and commit every code/schema change anyway, note in the
+> commit/PR that migration + seed still need to run somewhere with DB access, and give the
+> exact commands to run. Don't treat a blocked migration as a reason to skip typecheck/
+> lint/format — those don't need the database.
 
 ## 12. Write the feature doc
 
@@ -353,7 +526,7 @@ once all of these are true:
 - Migration applied and seed grants updated (steps 1–4)
 - Server Actions exist and are all `withPermission`-wrapped (step 7)
 - UI exists and is permission-gated (steps 8–10)
-- `npm run typecheck` and `npm run lint` pass
+- `npm run typecheck`, `npm run lint`, and `npx prettier --check` all pass (step 11)
 - You've manually verified it works, and is correctly hidden/rejected, for at least one
   role that has the grant and one that doesn't (step 11)
 
