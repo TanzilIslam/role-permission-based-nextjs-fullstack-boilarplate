@@ -18,6 +18,9 @@ Each file in `docs/features/` should cover:
 Keep entries up to date when the feature changes — treat this as living documentation, not a
 one-time snapshot.
 
+See [`feature-boilerplate.md`](./feature-boilerplate.md) for the step-by-step recipe to
+follow when adding any new role/permission-controlled module.
+
 ## Feature index
 
 | # | Doc | Status |
