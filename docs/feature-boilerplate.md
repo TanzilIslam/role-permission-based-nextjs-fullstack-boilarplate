@@ -19,7 +19,8 @@ that file is the "why".
 8. `app/dashboard/`: page, guarded by permission
 9. `components/dashboard/`: list + form UI, gated with `usePermission`/`PermissionGuard`
 10. `components/dashboard/sidebar.tsx`: nav entry
-11. Migrate + seed + verify
+11. Create + commit the migration folder, seed, verify (deploys apply committed migrations
+    via `npm run build`)
 12. Write/update `docs/features/<NN>-<module>.md` (standard template below) and the index
     in `docs/README.md`
 
@@ -47,7 +48,11 @@ model Item {
 }
 ```
 
-Run `npx prisma migrate dev --name add_items` after this.
+Then create the migration (`npx prisma migrate dev --name add_items`, or the offline
+method in step 11 if the DB isn't reachable) and **commit the generated
+`prisma/migrations/<timestamp>_add_items/` folder**. Deploys apply committed migrations
+automatically (`npm run build` runs `prisma migrate deploy` first). A schema change without
+its migration folder never reaches the database.
 
 ## 2. TypeScript enum
 
@@ -465,6 +470,11 @@ export function ItemList({ items }: { items: IItem[] }) {
 }
 ```
 
+If a row action is icon-only (e.g. `<Pencil />` / `<Trash2 />` instead of text), give it
+an `aria-label` that names the row, like `aria-label={\`Delete ${item.name}\`}`. Screen
+readers need it, and it's the only stable way for a browser test to target that specific
+row's button.
+
 For read-only rendering of individual rows (e.g. hiding a delete button per-row) in a
 Server Component instead, use `PermissionGuard`:
 
@@ -508,13 +518,75 @@ automatically, same list the server enforces against):
   importantly — calling the Server Action directly as a role that lacks the grant is still
   rejected server-side.
 
-> **Environment gotcha:** `prisma migrate dev` / `prisma db seed` need a real TCP
-> connection to your Postgres host. A sandboxed/CI runner with HTTPS-only egress (no raw
-> Postgres port) will fail both with `P1001` even though the schema/code are correct.
-> When that happens: finish and commit every code/schema change anyway, note in the
-> commit/PR that migration + seed still need to run somewhere with DB access, and give the
-> exact commands to run. Don't treat a blocked migration as a reason to skip typecheck/
-> lint/format — those don't need the database.
+### How migrations reach the real database
+
+`npm run build` is `prisma migrate deploy && next build`, so **every deploy applies the
+committed migrations in `prisma/migrations/`** before building. You never run migrations
+against production by hand. The seed is separate: after a deploy that adds a resource, run
+`npx prisma db seed` once so the new `<resource>:*` permissions and role grants exist.
+The seed is safe to re-run (all upserts), but each run also resets the seeded
+super-admin's password and role, so it deliberately isn't part of the build.
+
+### When the database isn't reachable (sandbox / CI without DB access)
+
+`prisma migrate dev` / `prisma db seed` need a real TCP connection to Postgres. An
+HTTPS-only sandbox fails both with `P1001` even though the code is correct. You can
+still create the migration without the database:
+
+```bash
+# 1. The schema as it was before your change (the commit before you edited it)
+git show <commit-before-your-change>:prisma/schema.prisma > /tmp/schema.before.prisma
+
+# 2. Generate the migration SQL from old schema -> new schema (no DB needed).
+#    DOTENV_CONFIG_QUIET stops dotenv's banner from being written into the SQL.
+TS=$(date -u +%Y%m%d%H%M%S)
+mkdir -p prisma/migrations/${TS}_add_items
+DOTENV_CONFIG_QUIET=true npx prisma migrate diff \
+  --from-schema /tmp/schema.before.prisma \
+  --to-schema prisma/schema.prisma \
+  --script -o prisma/migrations/${TS}_add_items/migration.sql
+```
+
+Check that the SQL is only what you expect (e.g. `ALTER TYPE "ResourceKey" ADD VALUE`
+plus `CREATE TABLE`), commit it, and let the next deploy apply it.
+
+If the sandbox has a local Postgres (`/usr/lib/postgresql/*/bin`), prove the migration
+before committing. Start a throwaway cluster on `127.0.0.1` (not as root), then point
+**both** `DIRECT_URL` and `DATABASE_URL` at it. Shell env vars win over `.env.local`, so
+nothing touches the real DB. Then check:
+
+- **Upgrade path.** Check out the pre-change commit in a `git worktree`, then run
+  `prisma migrate deploy` + `prisma db seed` there to recreate production's state. Back
+  in your tree, run `npm run build` (it applies only your new migration) and
+  `prisma db seed`.
+- **No drift.** `npx prisma migrate diff --from-config-datasource --to-schema
+  prisma/schema.prisma --exit-code` must exit `0`.
+- **Fresh install.** Run `prisma migrate deploy` on an empty database. Every migration
+  applies, and the drift check above still exits `0`.
+- **Idempotent.** A second `prisma migrate deploy` reports "No pending migrations".
+
+Don't treat a blocked database as a reason to skip typecheck, lint, or format. Those
+don't need it.
+
+### Proving server-side enforcement, not just hidden buttons
+
+For the "rejected server-side" check, call the action from **inside a logged-in browser
+page** as a role without the grant. That's exactly what an attacker does from devtools.
+Take the action ID from `.next/server/server-reference-manifest.json`, then run in the page:
+
+```js
+await fetch(location.pathname, {
+  method: "POST",
+  headers: { "Next-Action": "<actionId>", Accept: "text/x-component",
+             "Content-Type": "text/plain;charset=UTF-8" },
+  body: JSON.stringify([{ name: "should-not-exist" }]),
+}).then((r) => r.text())
+// expect: {"success":false,"message":"Forbidden: missing \"<resource>:create\" permission."}
+```
+
+Run the same call as a role that *does* hold the grant as a control. Don't use
+Playwright's standalone `request` API for this: it returned an empty `{}` for Next
+Server Action calls, which proves nothing either way.
 
 ## 12. Write the feature doc
 
@@ -523,7 +595,9 @@ automatically, same list the server enforces against):
 A feature counts as "complete" — and gets its `docs/features/*.md` written or updated —
 once all of these are true:
 
-- Migration applied and seed grants updated (steps 1–4)
+- Migration folder committed and seed grants updated (steps 1–4). "Committed" means
+  either applied with `migrate dev`, or generated offline and verified against a local
+  Postgres (step 11).
 - Server Actions exist and are all `withPermission`-wrapped (step 7)
 - UI exists and is permission-gated (steps 8–10)
 - `npm run typecheck`, `npm run lint`, and `npx prettier --check` all pass (step 11)

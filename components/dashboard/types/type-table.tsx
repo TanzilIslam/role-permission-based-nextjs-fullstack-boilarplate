@@ -101,6 +101,7 @@ export function TypeTable({ types }: TypeTableProps) {
                         onChange={(e) => setEditingName(e.target.value)}
                         className="h-8 max-w-xs"
                         disabled={isPending}
+                        aria-label="Type name"
                         autoFocus
                       />
                     ) : (
@@ -125,6 +126,7 @@ export function TypeTable({ types }: TypeTableProps) {
                               variant="ghost"
                               disabled={isPending}
                               onClick={cancelEdit}
+                              aria-label="Cancel editing"
                             >
                               <X className="size-4" />
                             </Button>
@@ -137,6 +139,7 @@ export function TypeTable({ types }: TypeTableProps) {
                                 variant="ghost"
                                 disabled={isPending}
                                 onClick={() => startEdit(type)}
+                                aria-label={`Edit ${type.name}`}
                               >
                                 <Pencil className="size-4" />
                               </Button>
@@ -148,6 +151,7 @@ export function TypeTable({ types }: TypeTableProps) {
                                 className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                                 disabled={isPending}
                                 onClick={() => handleDelete(type.id)}
+                                aria-label={`Delete ${type.name}`}
                               >
                                 <Trash2 className="size-4" />
                               </Button>

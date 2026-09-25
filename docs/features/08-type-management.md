@@ -13,11 +13,23 @@ permission. Built as the first module to follow `docs/feature-boilerplate.md`.
 Plain CRUD — no invariants beyond `withPermission`. No uniqueness constraint on `name`;
 duplicates are allowed since nothing else in the system depends on it being unique.
 
+Rollout: the migration is applied automatically by the next deploy (`prisma migrate
+deploy` in `npm run build`). The `types:*` permissions and role grants only exist after
+`npx prisma db seed` runs once against that database. Until then the Types page shows
+a "missing types:read" message, even for admins.
+
+Verified (2026-09-25) against a local Postgres 16 copy of production's state (upgrade from
+`init_rbac`, fresh install, no drift, idempotent re-run), plus a browser test of the
+production build. SUPER_ADMIN can create, rename, and delete. USER sees a read-only list
+with no Add/Edit/Delete controls. A USER calling `createTypeAction` directly is rejected
+server-side with `missing "types:create" permission`.
+
 ## File Paths
 
 | Path                                                  | Purpose                                  |
 | ------------------------------------------------------ | ------------------------------------------- |
 | `prisma/schema.prisma`                                | `ResourceKey.types` + `Type` model        |
+| `prisma/migrations/20260925220014_add_type/`          | Adds enum value `types` + `Type` table; applied on deploy by `npm run build` |
 | `types/enums.ts`                                      | `Resource.TYPES`                          |
 | `types/index.ts`                                      | `IType`                                   |
 | `lib/validations/types.ts`                            | `typeSchema`, `typeUpdateSchema`         |
@@ -25,7 +37,7 @@ duplicates are allowed since nothing else in the system depends on it being uniq
 | `app/actions/types.ts`                                | Server Actions, `withPermission`-wrapped |
 | `app/dashboard/types/page.tsx`                        | Page                                     |
 | `components/dashboard/types/create-type-dialog.tsx`   | Create form (dialog)                     |
-| `components/dashboard/types/type-table.tsx`           | List, inline rename, delete              |
+| `components/dashboard/types/type-table.tsx`           | List, inline rename, delete (icon buttons carry `aria-label`s) |
 | `components/dashboard/sidebar.tsx`                    | Nav entry (`Types`)                      |
 | `prisma/seed.ts`                                      | `ROLE_GRANTS.*.types`                    |
 
