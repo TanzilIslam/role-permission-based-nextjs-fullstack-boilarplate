@@ -28,8 +28,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-# .env*
+# env files — never commit real secrets; see .env.example for the shape
+.env*
 !.env.example
 
 # typescript
