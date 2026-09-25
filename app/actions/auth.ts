@@ -79,9 +79,11 @@ export async function loginAction(
     })
 
     revalidatePath("/dashboard")
-  } catch {
-    // Deliberately generic: never reveal whether the email or the password was
-    // the part that did not match.
+  } catch (error) {
+    // Logged server-side only — the client always sees the same generic
+    // message, so a DB/connection error can't be distinguished from a wrong
+    // password by anyone watching the response.
+    console.error("loginAction failed:", error)
     return actionFailure("Invalid email or password.")
   }
 
