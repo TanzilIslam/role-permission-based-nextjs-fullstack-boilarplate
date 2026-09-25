@@ -1,18 +1,18 @@
 # App Counts
 
-Snapshot of endpoints, validations, and forms as of `main`, after the Type module.
+Snapshot of endpoints, validations, and forms as of `main`, after the Category module.
 Update this whenever actions/forms/schemas are added or removed.
 
 ## Summary
 
 | Metric                                     | Count |
 | ------------------------------------------- | ----- |
-| Backend API endpoints (Server Actions)     | 15    |
+| Backend API endpoints (Server Actions)     | 19    |
 | REST API routes (`route.ts`)               | 0     |
-| Backend Zod schemas defined                | 11    |
-| Backend Zod schemas actively used           | 7     |
-| Frontend forms                             | 3     |
-| Frontend validation rules (HTML5/UI-level) | 9     |
+| Backend Zod schemas defined                | 13    |
+| Backend Zod schemas actively used           | 9     |
+| Frontend forms                             | 4     |
+| Frontend validation rules (HTML5/UI-level) | 10    |
 
 ## 1. Backend API endpoints (Server Actions)
 
@@ -36,8 +36,12 @@ Next.js Server Actions in `app/actions/`.
 | 13 | `createTypeAction`         | `app/actions/types.ts`     | Yes                          |
 | 14 | `updateTypeAction`         | `app/actions/types.ts`     | Yes                          |
 | 15 | `deleteTypeAction`         | `app/actions/types.ts`     | Yes                          |
+| 16 | `getCategoriesAction`      | `app/actions/categories.ts` | Yes                        |
+| 17 | `createCategoryAction`     | `app/actions/categories.ts` | Yes                        |
+| 18 | `updateCategoryAction`     | `app/actions/categories.ts` | Yes                        |
+| 19 | `deleteCategoryAction`     | `app/actions/categories.ts` | Yes                        |
 
-**Total: 15**
+**Total: 19**
 
 ## 2. Backend validation (Zod schemas)
 
@@ -56,8 +60,10 @@ Defined in `lib/validations/`.
 | 9 | `userRoleUpdateSchema`    | `lib/validations/rbac.ts` | `updateUserRoleAction`                                 |
 | 10 | `typeSchema`             | `lib/validations/types.ts` | `createTypeAction`                                    |
 | 11 | `typeUpdateSchema`       | `lib/validations/types.ts` | `updateTypeAction`                                    |
+| 12 | `categorySchema`         | `lib/validations/categories.ts` | `createCategoryAction`                           |
+| 13 | `categoryUpdateSchema`   | `lib/validations/categories.ts` | `updateCategoryAction`                           |
 
-**Total defined: 11 · Actively used: 7**
+**Total defined: 13 · Actively used: 9**
 
 `lib/validations/form.ts` also exports `validateForm`/`toFormErrors` — helpers, not schemas.
 
@@ -68,12 +74,14 @@ Defined in `lib/validations/`.
 | 1 | Login form          | `components/login-form.tsx`                        | Base UI `<Form>` + `useActionState(loginAction)`       |
 | 2 | Create user dialog  | `components/dashboard/users/create-user-dialog.tsx` | Native `<form>` + `startTransition(createUserAction)` |
 | 3 | Create type dialog  | `components/dashboard/types/create-type-dialog.tsx` | Native `<form>` + `startTransition(createTypeAction)` |
+| 4 | Create category dialog | `components/dashboard/categories/create-category-dialog.tsx` | Native `<form>` + `startTransition(createCategoryAction)` |
 
-**Total: 3**
+**Total: 4**
 
 `components/dashboard/roles/permission-matrix.tsx`, `components/dashboard/users/user-table.tsx`,
-and `components/dashboard/types/type-table.tsx` mutate state directly (checkbox toggles /
-selects / inline rename calling Server Actions) without a `<form>` element.
+`components/dashboard/types/type-table.tsx`, and `components/dashboard/categories/category-table.tsx`
+mutate state directly (checkbox toggles / selects / inline rename calling Server Actions)
+without a `<form>` element.
 
 ## 4. Frontend validation rules
 
@@ -87,6 +95,8 @@ All real validation runs server-side (Zod, via the `errors` prop pattern in `lib
 | 3 | Password       | Create user dialog  | `required`, `minLength={8}`     |
 | 4 | Role           | Create user dialog  | `required` (Select)             |
 | 5 | Name           | Create type dialog  | `required`, `minLength={1}`     |
+| 6 | Name           | Create category dialog | `required`, `minLength={1}`  |
 
-**Total constraints: 9** across **5** validated fields (Status has none; Login form has none — it
-relies entirely on server-returned Zod errors).
+**Total constraints: 10** across **6** validated fields (Status has none; Login form has
+none — it relies entirely on server-returned Zod errors; Category's `description` field
+has none, matching that it's optional).

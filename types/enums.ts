@@ -21,4 +21,5 @@ export enum Resource {
   DASHBOARD = "dashboard",
   SETTINGS = "settings",
   TYPES = "types",
+  CATEGORIES = "categories",
 }

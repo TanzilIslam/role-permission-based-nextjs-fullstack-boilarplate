@@ -36,6 +36,7 @@ enum ResourceKey {
   dashboard
   settings
   types
+  categories
 }
 
 enum UserStatusKey {
@@ -86,4 +87,12 @@ model Type {
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

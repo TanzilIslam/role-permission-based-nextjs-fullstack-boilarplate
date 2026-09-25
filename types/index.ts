@@ -38,6 +38,13 @@ export interface IType {
   createdAt: Date
 }
 
+export interface ICategory {
+  id: string
+  name: string
+  description?: string
+  createdAt: Date
+}
+
 export interface AuthSession {
   user: {
     id: string

@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
+  FolderTree,
   LayoutDashboard,
   LogOut,
   Settings,
@@ -48,6 +49,13 @@ const routes = [
     icon: Tag,
     href: "/dashboard/types",
     resource: Resource.TYPES,
+    action: PermissionAction.READ,
+  },
+  {
+    label: "Categories",
+    icon: FolderTree,
+    href: "/dashboard/categories",
+    resource: Resource.CATEGORIES,
     action: PermissionAction.READ,
   },
   {
