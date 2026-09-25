@@ -670,7 +670,21 @@ ON CONFLICT (resource, action) DO NOTHING;
 ```
 
 **Nobody (including `SUPER_ADMIN`) can see the new page after deploying.** Expected — see
-§ 4 and § 11. Not a bug; grant it via the Permission Matrix.
+§ 4 and § 11. Normally you grant it by clicking the checkbox in the Permission Matrix and
+saving — but if the matrix itself isn't reachable yet (the role viewing it doesn't hold
+`roles:manage`, or the catalogue rows were *just* created and you don't want to wait on a
+UI round-trip), grant it directly instead of clicking:
+```sql
+INSERT INTO "_RolePermissions" ("A", "B")
+SELECT p.id, r.id
+FROM "Permission" p
+JOIN "Role" r ON r.key = '<ROLE_KEY>'  -- e.g. SUPER_ADMIN, ADMIN, MANAGER, USER
+WHERE p.resource = '<resource>' AND p.action = '<action>'  -- e.g. 'manage' for full access
+ON CONFLICT DO NOTHING;
+```
+This is the exact inverse of the revoke query below, and is what actually flips a checkbox
+from unchecked to checked — the catalogue-insert above only makes the checkbox exist at
+all, it grants nothing by itself.
 
 **You want to revoke a resource's grants without a full re-seed** (a full `prisma db seed`
 also resets the super-admin's password/role, which you may not want mid-debugging):
