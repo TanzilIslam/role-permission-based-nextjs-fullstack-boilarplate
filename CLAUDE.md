@@ -13,7 +13,7 @@ This repo pins `next@16.2.6`, a version with breaking API/convention/file-struct
 ## Commands
 
 - `npm run dev` — start the dev server
-- `npm run build` — `prisma migrate deploy && next build`: applies any committed, not-yet-applied migrations in `prisma/migrations/` to the `DIRECT_URL` database, then builds. A failed migration fails the build, so the deploy never ships code ahead of its schema. It runs on every build that has DB env vars, including preview deploys, and those migrate whatever database they point at.
+- `npm run build` — production build (`next build`). Deploys do **not** run any Prisma command — schema changes are applied by hand, by pasting the migration SQL into Neon's SQL editor (see `docs/feature-boilerplate.md`).
 - `npm start` — run the production build
 - `npm run lint` — ESLint (flat config via `eslint.config.mjs`, using `eslint-config-next`'s core-web-vitals + typescript rule sets)
 - `npm run typecheck` — `tsc --noEmit`
