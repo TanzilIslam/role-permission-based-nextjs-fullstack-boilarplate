@@ -24,6 +24,12 @@ This repo pins `next@16.2.6`, a version with breaking API/convention/file-struct
 
 There is no test setup in this repo currently.
 
+## Agent workflow
+
+After making a code change, do **not** proactively run `npm run lint`, `npm run typecheck`,
+or a browser/dev-server check (e.g. via Playwright) unless the user explicitly asks for it.
+Make the edit and stop there.
+
 ## Environment variables
 
 
