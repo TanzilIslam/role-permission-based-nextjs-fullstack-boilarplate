@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
 
+import { MobileSidebar } from "@/components/dashboard/mobile-sidebar"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { AuthProvider } from "@/components/providers/auth-provider"
 import { Toaster } from "@/components/ui/sonner"
@@ -30,7 +31,8 @@ export default async function DashboardLayout({
         <Sidebar className="hidden shrink-0 md:flex" />
 
         <div className="flex flex-1 flex-col overflow-y-auto">
-          <header className="flex h-16 items-center border-b px-6 md:hidden">
+          <header className="flex h-16 items-center gap-2 border-b px-4 md:hidden">
+            <MobileSidebar />
             <h1 className="text-lg font-bold">RBAC Dashboard</h1>
           </header>
 

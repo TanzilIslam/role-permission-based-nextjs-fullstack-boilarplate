@@ -59,7 +59,13 @@ const routes = [
   },
 ] as const
 
-export function Sidebar({ className }: { className?: string }) {
+interface SidebarProps {
+  className?: string
+  /** Called after a nav link is clicked — lets a mobile drawer close itself. */
+  onNavigate?: () => void
+}
+
+export function Sidebar({ className, onNavigate }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { user, hasPermission } = usePermission()
@@ -103,6 +109,7 @@ export function Sidebar({ className }: { className?: string }) {
                 key={route.href}
                 href={route.href}
                 aria-current={isActive ? "page" : undefined}
+                onClick={onNavigate}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
                   isActive
