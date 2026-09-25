@@ -20,7 +20,7 @@ app that aren't obvious from the code alone and matter for every new feature:
    the new resource to `ROLE_GRANTS` in `prisma/seed.ts`. Access is turned on afterward,
    per role, from the Permission Matrix (`/dashboard/roles`) — see § 4.
 3. **Don't run `npm run lint`/`typecheck`/a browser check after an edit unless asked** —
-   see "Agent workflow" below. This applies to building a new feature too.
+   see "Agent workflow". This applies to building a new feature too.
 
 ## Important: this is not the Next.js you know
 
@@ -34,6 +34,9 @@ This repo pins `next@16.2.6`, a version with breaking API/convention/file-struct
 - `npm run lint` — ESLint (flat config via `eslint.config.mjs`, using `eslint-config-next`'s core-web-vitals + typescript rule sets)
 - `npm run typecheck` — `tsc --noEmit`
 - `npm run format` — Prettier write across `**/*.{ts,tsx}`
+- `npm run validate` — typecheck → lint → format → build, in order, each gating the next.
+  Run this when explicitly asked to verify a change (see "Agent workflow") — it's the
+  single command that replaces running each check separately.
 - `npx prisma migrate dev` — run pending migrations
 - `npx prisma db seed` — seed roles, permissions, and super-admin user
 - `npx prisma generate` — regenerate Prisma client (output: `lib/generated/prisma/`)
