@@ -6,6 +6,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A Next.js full-stack RBAC (Role-Based Access Control) boilerplate with a permission management dashboard. Built on Next.js + shadcn/ui + Prisma + PostgreSQL. Features granular `resource:action` permissions, a permission matrix editor, user management, and invariant-protected mutations.
 
+## Adding a new feature/module
+
+Follow `docs/feature-boilerplate.md` — it's the step-by-step recipe (schema → validation →
+data layer → Server Actions → UI → sidebar → migration → docs), worked through end-to-end
+on the real `Type` module (`docs/features/08-type-management.md`). Three things about this
+app that aren't obvious from the code alone and matter for every new feature:
+
+1. **Deploys never touch the database.** `npm run build` is plain `next build`. Schema
+   changes are applied by hand — generate the migration SQL, paste it into Neon's SQL
+   editor yourself. See feature-boilerplate.md § 11.
+2. **New resources start unchecked for every role, including `SUPER_ADMIN`.** Don't add
+   the new resource to `ROLE_GRANTS` in `prisma/seed.ts`. Access is turned on afterward,
+   per role, from the Permission Matrix (`/dashboard/roles`) — see § 4.
+3. **Don't run `npm run lint`/`typecheck`/a browser check after an edit unless asked** —
+   see "Agent workflow" below. This applies to building a new feature too.
+
 ## Important: this is not the Next.js you know
 
 This repo pins `next@16.2.6`, a version with breaking API/convention/file-structure changes relative to what training data assumes. **Before writing or changing any Next.js-specific code (routing, data fetching, config, etc.), consult the bundled docs in `node_modules/next/dist/docs/` first** and follow any deprecation notices found there rather than assuming older Next.js patterns apply.
@@ -39,6 +55,11 @@ Make the edit and stop there.
 | `DIRECT_URL`          | Yes      | PostgreSQL unpooled endpoint (Prisma migrations)        |
 | `SESSION_SECRET`      | Yes      | HMAC key for JWT signing (≥32 bytes, base64url)        |
 | `SEED_ADMIN_PASSWORD` | No       | Seeded super-admin password (defaults to`ChangeMe123!`) |
+
+`.env.local` must never be committed — `.gitignore` excludes `.env*` (except
+`.env.example`, the template). If it ever ends up in git history, treat every value in it
+as compromised: rotate the Neon password, `SESSION_SECRET`, and `SEED_ADMIN_PASSWORD`, and
+update them in Vercel's project env vars, not just locally.
 
 ## Architecture: RBAC system
 
@@ -86,7 +107,12 @@ Four guards run before any user/role mutation:
 
 Schema: `prisma/schema.prisma`. Three core models: `User`, `Role`, `Permission` (many-to-many between Role↔Permission). Prisma client is generated to `lib/generated/prisma/` and instantiated as a singleton with PgBouncer adapter in `lib/prisma.ts`.
 
-Seed script (`prisma/seed.ts`) creates 25 permissions (5 resources × 5 actions), 4 roles (SUPER_ADMIN, ADMIN, MANAGER, USER) with graduated grants, and one super-admin user.
+Seed script (`prisma/seed.ts`) creates the full permission catalogue (every `resource:action`
+pair, generated from the enums — grows automatically as resources are added), the 4 roles
+(SUPER_ADMIN, ADMIN, MANAGER, USER) with graduated grants for the original 5 resources
+(`users`, `roles`, `permissions`, `dashboard`, `settings`), and one super-admin user. A
+resource added later (e.g. `types`) gets catalogue rows but **no grants** — every role
+starts unchecked for it; see "Adding a new feature/module" above.
 
 ## Architecture: UI & styling
 
