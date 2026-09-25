@@ -20,6 +20,8 @@ that file is the "why".
 9. `components/dashboard/`: list + form UI, gated with `usePermission`/`PermissionGuard`
 10. `components/dashboard/sidebar.tsx`: nav entry
 11. Migrate + seed + verify
+12. Write/update `docs/features/<NN>-<module>.md` (standard template below) and the index
+    in `docs/README.md`
 
 ---
 
@@ -341,6 +343,83 @@ automatically, same list the server enforces against):
   buttons show/hide correctly, and — most importantly — calling the Server Action directly
   as a role that lacks the grant is still rejected server-side.
 
+## 12. Write the feature doc
+
+### When to write it
+
+A feature counts as "complete" — and gets its `docs/features/*.md` written or updated —
+once all of these are true:
+
+- Migration applied and seed grants updated (steps 1–4)
+- Server Actions exist and are all `withPermission`-wrapped (step 7)
+- UI exists and is permission-gated (steps 8–10)
+- `npm run typecheck` and `npm run lint` pass
+- You've manually verified it works, and is correctly hidden/rejected, for at least one
+  role that has the grant and one that doesn't (step 11)
+
+Don't wait for the whole module to be "perfect" — write the doc as soon as the above is
+true, then keep it updated on every later change (new field, new invariant, new role
+grant). A stale doc is worse than no doc, because an agent will trust it.
+
+### Standard format — every `docs/features/*.md` must use this structure
+
+Different modules will always tempt you into a different shape ("this one needs a
+diagram", "this one has no data model") — resist that. Same section order, same headings,
+every time, even if a section is just "N/A — read-only, no invariants." A coding agent
+reading 10 feature docs benefits far more from predictable structure than from any single
+doc being "more complete."
+
+```markdown
+# <Feature Name>
+
+**Status:** Planned | In Progress | Complete
+**Last updated:** <YYYY-MM-DD>
+
+## Overview
+
+1-3 sentences: what this feature does and why it exists, in plain terms.
+
+## Business Logic
+
+Rules, invariants, edge cases. If there are none beyond plain CRUD, say so explicitly
+("Plain CRUD — no invariants beyond `withPermission`.") rather than leaving it blank.
+
+## File Paths
+
+| Path | Purpose |
+| --- | --- |
+| `app/actions/items.ts` | Server Actions |
+| `lib/data/items.ts` | Prisma queries |
+| `lib/validations/items.ts` | Zod schema |
+| `app/dashboard/items/page.tsx` | Page |
+| `components/dashboard/items/` | List + form UI |
+
+## Data Model
+
+Relevant Prisma model(s)/enum(s), or a pointer to `prisma/schema.prisma` if reproducing it
+here would just go stale.
+
+## Permissions
+
+| Resource | Actions used | Notes |
+| --- | --- | --- |
+| `items` | `create`, `read`, `update`, `delete` | e.g. which roles get which, per `prisma/seed.ts` |
+
+## Flow
+
+Numbered steps for the main path(s) — e.g. "1. Client calls `createItemAction` → 2.
+`withPermission` checks `items:create` → 3. `itemSchema.safeParse` → 4. `insertItem` →
+5. `revalidatePath`."
+
+## Related Features
+
+Links to other `docs/features/*.md` this depends on or affects (e.g. Authentication,
+RBAC Permission Model).
+```
+
+After writing it, update the table in `docs/README.md` (`## Feature index`): add the row
+if it's new, or flip its `Status` if it changed.
+
 ---
 
 ## Rules that don't change per-module
@@ -355,5 +434,6 @@ automatically, same list the server enforces against):
   thin: validate → call data layer → guard invariants (if any) → revalidate → return.
 - **`Resource` enum value === Prisma `ResourceKey` value.** This identity is load-bearing;
   don't let them drift.
-- Update `docs/features/*.md` and `docs/counts.md` once the module is real (see
-  `docs/README.md` for the doc-writing convention).
+- Every `docs/features/*.md` follows the **same** section order (see step 12) — no
+  per-module deviation.
+- Update `docs/counts.md` once the module is real (new Server Actions, schemas, forms).
