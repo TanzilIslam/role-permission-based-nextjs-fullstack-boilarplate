@@ -20,4 +20,5 @@ export enum Resource {
   PERMISSIONS = "permissions",
   DASHBOARD = "dashboard",
   SETTINGS = "settings",
+  TYPES = "types",
 }

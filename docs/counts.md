@@ -1,18 +1,18 @@
 # App Counts
 
-Snapshot of endpoints, validations, and forms as of `main` (commit `5c7317d`).
+Snapshot of endpoints, validations, and forms as of `main`, after the Type module.
 Update this whenever actions/forms/schemas are added or removed.
 
 ## Summary
 
 | Metric                                     | Count |
 | ------------------------------------------- | ----- |
-| Backend API endpoints (Server Actions)     | 11    |
+| Backend API endpoints (Server Actions)     | 15    |
 | REST API routes (`route.ts`)               | 0     |
-| Backend Zod schemas defined                | 9     |
-| Backend Zod schemas actively used           | 5     |
-| Frontend forms                             | 2     |
-| Frontend validation rules (HTML5/UI-level) | 7     |
+| Backend Zod schemas defined                | 11    |
+| Backend Zod schemas actively used           | 7     |
+| Frontend forms                             | 3     |
+| Frontend validation rules (HTML5/UI-level) | 9     |
 
 ## 1. Backend API endpoints (Server Actions)
 
@@ -32,8 +32,12 @@ Next.js Server Actions in `app/actions/`.
 | 9 | `getUsersAction`            | `app/actions/users.ts`     | Yes                          |
 | 10 | `createUserAction`         | `app/actions/users.ts`     | Yes                          |
 | 11 | `updateUserRoleAction`     | `app/actions/users.ts`     | Yes                          |
+| 12 | `getTypesAction`           | `app/actions/types.ts`     | Yes                          |
+| 13 | `createTypeAction`         | `app/actions/types.ts`     | Yes                          |
+| 14 | `updateTypeAction`         | `app/actions/types.ts`     | Yes                          |
+| 15 | `deleteTypeAction`         | `app/actions/types.ts`     | Yes                          |
 
-**Total: 11**
+**Total: 15**
 
 ## 2. Backend validation (Zod schemas)
 
@@ -50,8 +54,10 @@ Defined in `lib/validations/`.
 | 7 | `rolePermissionsSchema`   | `lib/validations/rbac.ts` | `updateRolePermissionsAction`                          |
 | 8 | `createUserSchema`        | `lib/validations/rbac.ts` | `createUserAction`                                     |
 | 9 | `userRoleUpdateSchema`    | `lib/validations/rbac.ts` | `updateUserRoleAction`                                 |
+| 10 | `typeSchema`             | `lib/validations/types.ts` | `createTypeAction`                                    |
+| 11 | `typeUpdateSchema`       | `lib/validations/types.ts` | `updateTypeAction`                                    |
 
-**Total defined: 9 · Actively used: 5**
+**Total defined: 11 · Actively used: 7**
 
 `lib/validations/form.ts` also exports `validateForm`/`toFormErrors` — helpers, not schemas.
 
@@ -61,11 +67,13 @@ Defined in `lib/validations/`.
 | - | -------------------- | ----------------------------------------------------- | -------------------------------------------------------- |
 | 1 | Login form          | `components/login-form.tsx`                        | Base UI `<Form>` + `useActionState(loginAction)`       |
 | 2 | Create user dialog  | `components/dashboard/users/create-user-dialog.tsx` | Native `<form>` + `startTransition(createUserAction)` |
+| 3 | Create type dialog  | `components/dashboard/types/create-type-dialog.tsx` | Native `<form>` + `startTransition(createTypeAction)` |
 
-**Total: 2**
+**Total: 3**
 
-`components/dashboard/roles/permission-matrix.tsx` and `components/dashboard/users/user-table.tsx`
-mutate state directly (checkbox toggles / role selects calling Server Actions) without a `<form>` element.
+`components/dashboard/roles/permission-matrix.tsx`, `components/dashboard/users/user-table.tsx`,
+and `components/dashboard/types/type-table.tsx` mutate state directly (checkbox toggles /
+selects / inline rename calling Server Actions) without a `<form>` element.
 
 ## 4. Frontend validation rules
 
@@ -78,6 +86,7 @@ All real validation runs server-side (Zod, via the `errors` prop pattern in `lib
 | 2 | Email          | Create user dialog  | `required`, `type="email"`      |
 | 3 | Password       | Create user dialog  | `required`, `minLength={8}`     |
 | 4 | Role           | Create user dialog  | `required` (Select)             |
+| 5 | Name           | Create type dialog  | `required`, `minLength={1}`     |
 
-**Total constraints: 7** across **4** validated fields (Status has none; Login form has none — it
+**Total constraints: 9** across **5** validated fields (Status has none; Login form has none — it
 relies entirely on server-returned Zod errors).

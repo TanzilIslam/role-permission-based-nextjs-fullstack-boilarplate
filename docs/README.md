@@ -30,3 +30,4 @@ follow when adding any new role/permission-controlled module.
 | 05 | [Permission Management](./features/05-permission-management.md) | Planned |
 | 06 | [Dashboard & Settings](./features/06-dashboard-settings.md) | Planned |
 | 07 | [UI & Theming](./features/07-ui-theming.md) | Planned |
+| 08 | [Type Management](./features/08-type-management.md) | Complete |

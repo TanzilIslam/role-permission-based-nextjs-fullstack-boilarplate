@@ -32,6 +32,12 @@ export interface IUser {
   createdAt: Date
 }
 
+export interface IType {
+  id: string
+  name: string
+  createdAt: Date
+}
+
 export interface AuthSession {
   user: {
     id: string

@@ -8,6 +8,7 @@ import {
   Settings,
   ShieldAlert,
   ShieldCheck,
+  Tag,
   Users,
 } from "lucide-react"
 
@@ -40,6 +41,13 @@ const routes = [
     icon: ShieldCheck,
     href: "/dashboard/roles",
     resource: Resource.ROLES,
+    action: PermissionAction.READ,
+  },
+  {
+    label: "Types",
+    icon: Tag,
+    href: "/dashboard/types",
+    resource: Resource.TYPES,
     action: PermissionAction.READ,
   },
   {
