@@ -135,7 +135,11 @@ export function CreateUserDialog({ roles }: CreateUserDialogProps) {
 
           <div className="grid gap-2">
             <Label>Role</Label>
-            <Select value={roleId} onValueChange={(v) => v && setRoleId(v)} required>
+            <Select
+              value={roleId}
+              onValueChange={(v) => v && setRoleId(v)}
+              required
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>

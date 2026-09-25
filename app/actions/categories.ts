@@ -11,7 +11,10 @@ import {
   updateCategory,
 } from "@/lib/data/categories"
 import { toFormErrors } from "@/lib/validations/form"
-import { categorySchema, categoryUpdateSchema } from "@/lib/validations/categories"
+import {
+  categorySchema,
+  categoryUpdateSchema,
+} from "@/lib/validations/categories"
 import type { ActionResult, ICategory } from "@/types"
 import { PermissionAction, Resource } from "@/types/enums"
 
