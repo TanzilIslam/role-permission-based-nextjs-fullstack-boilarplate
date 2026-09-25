@@ -12,7 +12,8 @@ that file is the "why".
 1. Prisma: add enum member + model
 2. `types/enums.ts`: add `Resource` member (must match Prisma enum value)
 3. `types/index.ts`: add domain interface
-4. `prisma/seed.ts`: grant the new resource to roles (catalogue is automatic; grants are not)
+4. `prisma/seed.ts`: nothing to add — catalogue is automatic, grants start unchecked for
+   every role and are set later via the Permission Matrix
 5. `lib/validations/`: Zod schema(s)
 6. `lib/data/`: Prisma query functions (row -> domain mappers)
 7. `app/actions/`: Server Actions, wrapped in `withPermission`
@@ -79,12 +80,16 @@ export interface IItem {
 }
 ```
 
-## 4. Seed grants
+## 4. Seed grants — leave the new resource out
 
 `prisma/seed.ts` — the permission **catalogue** (`items:create`, `items:read`, …) is
-generated automatically from `ResourceKey` × `PermissionActionKey`, so nothing to do
-there. But **role grants** are explicit — add `items` to whichever roles should have it in
-`ROLE_GRANTS`:
+generated automatically from `ResourceKey` × `PermissionActionKey`, so nothing to do there.
+
+**Do not add the new resource to `ROLE_GRANTS`.** Every new module starts fully unchecked
+for every role, including `SUPER_ADMIN` — nobody gets automatic access. An admin who holds
+`roles:manage` (only `SUPER_ADMIN` does, by default) grants it explicitly afterward, per
+role, from the Permission Matrix on `/dashboard/roles`, then clicks Save. Whatever ends up
+checked there is what that role can do — there is no seeded default to keep in sync.
 
 ```ts
 const ROLE_GRANTS: Record<
@@ -97,15 +102,19 @@ const ROLE_GRANTS: Record<
     permissions: ["manage"],
     dashboard: ["manage"],
     settings: ["manage"],
-    items: ["manage"], // + new resource
+    // items: nothing here — granted later via the Permission Matrix, not seeded
   },
   ADMIN: {
     // ...unchanged...
-    items: ["read", "create", "update"], // example: no delete
   },
-  // MANAGER / USER: omit `items` entirely if they should have none
+  // MANAGER / USER: unchanged too
 }
 ```
+
+This means right after deploying a new module, nobody can reach it yet — that's expected,
+not a bug. The one exception is if the module needs to be usable immediately with no manual
+step; say so explicitly if that's the case, since it's a deliberate deviation from the
+default.
 
 Re-run `npx prisma db seed` after editing.
 
@@ -557,7 +566,8 @@ Then:
 A feature counts as "complete" — and gets its `docs/features/*.md` written or updated —
 once all of these are true:
 
-- Migration SQL has been run against Neon and the seed grants updated (steps 1, 4, 11)
+- Migration SQL has been run against Neon (step 1, 11). No seed change is expected — grants
+  start unchecked for every role by design (step 4)
 - Server Actions exist and are all `withPermission`-wrapped (step 7)
 - UI exists and is permission-gated (steps 8–10)
 - `npm run typecheck`, `npm run lint`, and `npm run format`/`prettier --check` all pass
@@ -611,7 +621,7 @@ here would just go stale.
 
 | Resource | Actions used | Notes |
 | --- | --- | --- |
-| `items` | `create`, `read`, `update`, `delete` | e.g. which roles get which, per `prisma/seed.ts` |
+| `items` | `create`, `read`, `update`, `delete` | Starts unchecked for every role; granted per role via the Permission Matrix (`/dashboard/roles`), not seeded |
 
 ## Flow
 

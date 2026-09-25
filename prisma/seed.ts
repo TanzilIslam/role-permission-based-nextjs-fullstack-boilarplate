@@ -31,7 +31,6 @@ const ROLE_GRANTS: Record<
     permissions: ["manage"],
     dashboard: ["manage"],
     settings: ["manage"],
-    types: ["manage"],
   },
   ADMIN: {
     users: ["manage"],
@@ -39,16 +38,13 @@ const ROLE_GRANTS: Record<
     permissions: ["read"],
     dashboard: ["read"],
     settings: ["read"],
-    types: ["manage"],
   },
   MANAGER: {
     users: ["read", "update"],
     dashboard: ["read"],
-    types: ["read"],
   },
   USER: {
     dashboard: ["read"],
-    types: ["read"],
   },
 }
 

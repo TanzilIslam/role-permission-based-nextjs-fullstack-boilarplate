@@ -15,11 +15,16 @@ duplicates are allowed since nothing else in the system depends on it being uniq
 
 Rollout: the migration SQL was pasted into Neon's SQL editor by hand (deploys don't run
 Prisma commands — see `docs/feature-boilerplate.md`). `npx prisma db seed` was then run
-once against Neon to create the `types:*` permissions and role grants.
+once against Neon to create the `types:*` permission catalogue rows — but no role is
+granted any of them by seed. Every role, including `SUPER_ADMIN`, starts with `types`
+fully unchecked; a `SUPER_ADMIN` grants it per role from the Permission Matrix
+(`/dashboard/roles`) and saves. This is the standard convention now (see
+`docs/feature-boilerplate.md` step 4), not specific to this module.
 
-Verified: SUPER_ADMIN can create, rename, and delete. USER sees a read-only list with no
-Add/Edit/Delete controls. A USER calling `createTypeAction` directly is rejected
-server-side with `missing "types:create" permission`.
+Verified (before the unchecked-by-default change below): with `types:manage` granted,
+SUPER_ADMIN can create, rename, and delete. With only `types:read`, USER sees a read-only
+list with no Add/Edit/Delete controls. A USER calling `createTypeAction` directly without
+`types:create` is rejected server-side with `missing "types:create" permission`.
 
 ## File Paths
 
@@ -36,7 +41,7 @@ server-side with `missing "types:create" permission`.
 | `components/dashboard/types/create-type-dialog.tsx`   | Create form (dialog)                     |
 | `components/dashboard/types/type-table.tsx`           | List, inline rename, delete (icon buttons carry `aria-label`s) |
 | `components/dashboard/sidebar.tsx`                    | Nav entry (`Types`)                      |
-| `prisma/seed.ts`                                      | `ROLE_GRANTS.*.types`                    |
+| `prisma/seed.ts`                                      | Generates the `types:*` permission rows only — no `ROLE_GRANTS` entry |
 
 ## Data Model
 
@@ -53,7 +58,7 @@ model Type {
 
 | Resource | Actions used                    | Notes                                          |
 | ---------- | ---------------------------------- | -------------------------------------------------- |
-| `types`  | `create`, `read`, `update`, `delete` | SUPER_ADMIN/ADMIN: `manage`. MANAGER/USER: `read` only. |
+| `types`  | `create`, `read`, `update`, `delete` | Unchecked for every role by default. Grant per role via the Permission Matrix (`/dashboard/roles`). |
 
 ## Flow
 
